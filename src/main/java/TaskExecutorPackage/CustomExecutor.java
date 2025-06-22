@@ -7,12 +7,12 @@ import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.logging.Logger;
 
-public class CustomExecutor<T> implements TaskExecutor<T> {
+public class CustomExecutor implements TaskExecutor {
 
     private final Integer numberOfThreads;
     private final Thread [] taskExecutor;
     private final ConcurrentHashMap<UUID, Integer> taskToThreadMap;
-    private final BlockingQueue<FutureTask<T>>[] queue;
+    private final BlockingQueue<FutureTask<?>>[] queue;
     private final Integer capacity = 100;
     private Integer id = 0;
     private volatile Boolean running;
@@ -24,7 +24,7 @@ public class CustomExecutor<T> implements TaskExecutor<T> {
         taskExecutor = new Thread[1];
         queue = new BlockingQueue[1];
         for (int i = 0; i < 1; i++) {
-            queue[i] = new LinkedBlockingQueue<FutureTask<T>>(capacity);
+            queue[i] = new LinkedBlockingQueue<FutureTask<?>>(capacity);
         }
         this.running = true;
         taskToThreadMap = new ConcurrentHashMap<>();
@@ -36,7 +36,7 @@ public class CustomExecutor<T> implements TaskExecutor<T> {
         taskExecutor = new Thread[n];
         queue = new BlockingQueue[n];
         for (int i = 0; i < n; i++) {
-            queue[i] = new LinkedBlockingQueue<FutureTask<T>>();
+            queue[i] = new LinkedBlockingQueue<FutureTask<?>>();
         }
         this.running = true;
         taskToThreadMap = new ConcurrentHashMap<>();
@@ -50,7 +50,7 @@ public class CustomExecutor<T> implements TaskExecutor<T> {
                 taskExecutor[i] = new Thread(() -> {
                     while (running) {
                         try {
-                            FutureTask<T> futureTask =  queue[index].take();
+                            FutureTask<?> futureTask =  queue[index].take();
                             futureTask.run();
                         } catch (InterruptedException exception) {
                             if (!running) {
@@ -66,7 +66,7 @@ public class CustomExecutor<T> implements TaskExecutor<T> {
 
 
     @Override
-    public Future<T> submitTask(Task<T> task) {
+    public <T> Future<T> submitTask(Task<T> task) {
         TaskGroup taskGp = task.taskGroup();
         FutureTask<T> futureTask = new FutureTask<>(task.taskAction());
         if (taskToThreadMap.containsKey(taskGp.groupUUID())) {

@@ -14,7 +14,7 @@ import java.util.concurrent.Future;
 public class Main {
 
     public static void main(String[] args) throws ExecutionException, InterruptedException {
-        CustomExecutor<String> executor = new CustomExecutor<>(5);
+        CustomExecutor executor = new CustomExecutor(5);
 
         Future<String> var[] = new Future[10];
         UUID comm = UUID.randomUUID();
