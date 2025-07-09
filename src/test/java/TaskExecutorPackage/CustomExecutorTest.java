@@ -18,11 +18,11 @@ import java.util.concurrent.Future;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CustomExecutorTest {
-    private CustomExecutor<String> customExecutor;
+    private CustomExecutor customExecutor;
 
     @BeforeEach
     void setUp() {
-        customExecutor = new CustomExecutor<>(4);
+        customExecutor = new CustomExecutor(4);
     }
 
     @AfterEach

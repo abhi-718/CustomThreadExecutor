@@ -17,7 +17,7 @@ public class Main {
         CustomExecutor executor = new CustomExecutor(5);
 
         Future<String> var[] = new Future[10];
-        UUID comm = UUID.randomUUID();
+//        UUID comm = UUID.randomUUID();
         for (int i = 0; i < 10; i++) {
             int finalI = i;
             Callable<String> fun = new Callable<String>() {
@@ -26,7 +26,7 @@ public class Main {
                     return "Hi I am done !! "+ finalI;
                 }
             };
-            Task<String> task = new Task<>(UUID.randomUUID(), new TaskGroup(comm), TaskType.READ, fun);
+            Task<String> task = new Task<>(UUID.randomUUID(), new TaskGroup(UUID.randomUUID()), TaskType.READ, fun);
             var[i] = executor.submitTask(task);
         }
 

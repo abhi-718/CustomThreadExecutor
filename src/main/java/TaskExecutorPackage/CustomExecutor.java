@@ -10,94 +10,70 @@ import java.util.logging.Logger;
 public class CustomExecutor implements TaskExecutor {
 
     private final Integer numberOfThreads;
-    private final Thread [] taskExecutor;
+    private final ExecutorService [] executorServices;
     private final ConcurrentHashMap<UUID, Integer> taskToThreadMap;
-    private final BlockingQueue<FutureTask<?>>[] queue;
-    private final Integer capacity = 100;
-    private Integer id = 0;
-    private volatile Boolean running;
+    private Integer id;
 
     Logger logger = Logger.getLogger(CustomExecutor.class.getName());
 
     public CustomExecutor() {
         this.numberOfThreads = 1;
-        taskExecutor = new Thread[1];
-        queue = new BlockingQueue[1];
-        for (int i = 0; i < 1; i++) {
-            queue[i] = new LinkedBlockingQueue<FutureTask<?>>(capacity);
-        }
-        this.running = true;
+        executorServices = new ExecutorService[1];
+        executorServices[0] = Executors.newSingleThreadExecutor();
         taskToThreadMap = new ConcurrentHashMap<>();
-        start();
+        id = 0;
     }
 
     public CustomExecutor(int n) {
         this.numberOfThreads = n;
-        taskExecutor = new Thread[n];
-        queue = new BlockingQueue[n];
+        executorServices = new ExecutorService[n];
         for (int i = 0; i < n; i++) {
-            queue[i] = new LinkedBlockingQueue<FutureTask<?>>();
+            executorServices[i] = Executors.newSingleThreadExecutor();
         }
-        this.running = true;
         taskToThreadMap = new ConcurrentHashMap<>();
-        start();
+        id = 0;
     }
 
-
-    public void start() {
-            for (int i = 0; i < numberOfThreads; i++) {
-                final int index = i;
-                taskExecutor[i] = new Thread(() -> {
-                    while (running) {
-                        try {
-                            FutureTask<?> futureTask =  queue[index].take();
-                            futureTask.run();
-                        } catch (InterruptedException exception) {
-                            if (!running) {
-                                Thread.currentThread().interrupt();
-                                break;
-                            }
-                        }
-                    }
-                });
-                taskExecutor[i].start();
-            }
-    }
 
 
     @Override
     public <T> Future<T> submitTask(Task<T> task) {
         TaskGroup taskGp = task.taskGroup();
-        FutureTask<T> futureTask = new FutureTask<>(task.taskAction());
+        Callable<T> callable = task.taskAction();
+        FutureTask<T> futureTask = new FutureTask<>(callable);
+
+        int threadId;
         if (taskToThreadMap.containsKey(taskGp.groupUUID())) {
-            int threadId = taskToThreadMap.get(taskGp.groupUUID());
-            if (!queue[threadId].offer(futureTask)) {
-                logger.warning("Task rejected for thread " + threadId + ": " + task.toString());
-            } else {
-                logger.info("Task with Group id "+taskGp.groupUUID()+" is running on "+threadId);
-            }
-        }else {
-            if (!queue[id].offer(futureTask)) {
-                logger.warning("Task rejected for thread " + id + ": " + task.toString());
-            }else {
-                taskToThreadMap.put(taskGp.groupUUID(), id);
-                logger.info("Task with Group id "+taskGp.groupUUID()+" is running on "+id);
-                if (id + 1 == this.numberOfThreads) {
-                    id = 0;
-                } else {
-                    id++;
-                }
-            }
+            threadId = taskToThreadMap.get(taskGp.groupUUID());
+        } else {
+            threadId = id;
+            taskToThreadMap.put(taskGp.groupUUID(), threadId);
+            id = (id + 1) % numberOfThreads;
         }
+
+        logger.info("Task with Group id " + taskGp.groupUUID() + " is assigned to thread " + threadId);
+        executorServices[threadId].submit(futureTask);
+
         return futureTask;
 
     }
 
 
     public void shutDown() {
-        running = false;
-        for (Thread executor: taskExecutor) {
-            executor.interrupt();
+
+        for (ExecutorService executor : executorServices) {
+            executor.shutdown();
+        }
+
+        for (ExecutorService executor : executorServices) {
+            try {
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
