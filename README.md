@@ -9,16 +9,15 @@
 
 ## Assumptions
 
-### 1. Queue Capacity is Fixed
-- The internal task queue for each worker thread has a **fixed capacity of 100** tasks.
-- This value is currently **hardcoded** in the constructor and not configurable externally.
-- If the queue is full, task submission will **fail silently** (logged as a warning) and will **not block** or retry.
-- It is assumed that this capacity is **sufficient** for the expected workload or that external systems handle retry/backpressure.
-
----
-
-### 2. Round-Robin Scheduling Across Threads
-- When a new `TaskGroup` is submitted for the **first time**, it is assigned to one of the available threads in **round-robin** fashion.
-- This is implemented using a shared counter (`id++`), which wraps around when it reaches the total number of threads.
-- It is assumed that this will provide a **fair and even distribution** of unrelated task groups across all threads.
-- Once a `TaskGroup` is assigned to a thread, **all future tasks from that group are bound to the same thread** to ensure **sequential execution** within that group.
+1. Tasks can be submitted concurrently and do not block submitter.
+2. Tasks must be executed asynchronously and concurrently across groups.
+3. Tasks in the same group must not overlap (strictly one at a time).
+4. Tasks in a group must execute in FIFO order.
+5. Each group will be mapped to a single-thread executor to guarantee order and non-concurrent execution.
+6. Number of TaskGroups is limited or acceptable to handle using separate executors.
+7. System resources (threads) are sufficient for the number of executors created.
+8. Futures are used to retrieve results, and callers handle blocking if needed.
+9. No explicit external blocking queue is required since executor internal queues are sufficient.
+10. Task logic is self-contained and thread-safe across groups.
+11. Shutdown will be explicitly called by the application lifecycle.
+12. Proper resource cleanup and termination are expected during shutdown.
